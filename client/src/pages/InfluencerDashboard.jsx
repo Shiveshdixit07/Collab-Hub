@@ -1,12 +1,51 @@
-import React from 'react';
-import { User, Heart, TrendingUp, DollarSign } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Heart, TrendingUp, DollarSign, MapPin, Tag, Instagram, LogOut } from 'lucide-react';
 
-const InfluencerDashboard = () => {
+const InfluencerDashboard = ({ influencer: influencerProp, onLogout }) => {
+  const [influencer, setInfluencer] = useState(influencerProp);
+
+  // Load from localStorage if prop is not available (e.g., on page refresh)
+  useEffect(() => {
+    if (!influencer) {
+      const stored = localStorage.getItem('currentInfluencer');
+      if (stored) {
+        setInfluencer(JSON.parse(stored));
+      }
+    }
+  }, [influencer]);
+
+  // Format followers count for display
+  const formatFollowers = (followersRange) => {
+    if (!followersRange) return 'N/A';
+    return followersRange.toUpperCase().replace('-', ' - ');
+  };
+
+  // Format category for display
+  const formatCategory = (category) => {
+    if (!category) return 'N/A';
+    return category.charAt(0).toUpperCase() + category.slice(1);
+  };
+
+  if (!influencer) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 py-10 px-6 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Please log in to view your dashboard.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const fullName = `${influencer.firstName} ${influencer.lastName}`;
   const stats = [
-    { label: 'Followers', value: '84,213', icon: <User className="h-5 w-5" />, color: 'from-pink-500 to-purple-600' },
+    { label: 'Followers Range', value: formatFollowers(influencer.followers), icon: <User className="h-5 w-5" />, color: 'from-pink-500 to-purple-600' },
+    { label: 'Category', value: formatCategory(influencer.category), icon: <Tag className="h-5 w-5" />, color: 'from-red-500 to-pink-600' },
+    { label: 'Location', value: influencer.location || 'N/A', icon: <MapPin className="h-5 w-5" />, color: 'from-blue-500 to-indigo-600' },
+    { label: 'Instagram', value: `@${influencer.instagram}`, icon: <Instagram className="h-5 w-5" />, color: 'from-green-500 to-emerald-600' },
     { label: 'Avg. Likes', value: '3,482', icon: <Heart className="h-5 w-5" />, color: 'from-red-500 to-pink-600' },
     { label: 'Engagement', value: '6.2%', icon: <TrendingUp className="h-5 w-5" />, color: 'from-blue-500 to-indigo-600' },
     { label: 'Earnings (mo)', value: '$2,450', icon: <DollarSign className="h-5 w-5" />, color: 'from-green-500 to-emerald-600' },
+
   ];
 
   const campaigns = [
@@ -20,7 +59,16 @@ const InfluencerDashboard = () => {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Influencer Dashboard</h1>
-          <div className="text-sm text-gray-500">Welcome back, Jane!</div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-500">Welcome back, {influencer.firstName}!</div>
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg cursor-pointer"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">

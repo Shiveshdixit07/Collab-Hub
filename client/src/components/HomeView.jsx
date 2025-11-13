@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { TrendingUp, Users, Building2, Instagram, Star, DollarSign } from 'lucide-react';
 
-const HomeView = memo(function HomeView({ onGotoInfluencer, onGotoBrand }) {
+const HomeView = memo(function HomeView({ onGotoInfluencer, onGotoBrand, onGotoInfluencerLogin }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
       {/* Animated background elements */}
@@ -71,6 +71,13 @@ const HomeView = memo(function HomeView({ onGotoInfluencer, onGotoBrand }) {
             >
               <Building2 className="h-6 w-6" />
               <span>Join as Brand</span>
+            </button>
+            <button
+              onClick={onGotoInfluencerLogin}
+              className="group bg-white/10 hover:bg-white/20 text-white px-12 py-6 rounded-2xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl flex items-center space-x-3 border border-white/30"
+            >
+              <TrendingUp className="h-6 w-6" />
+              <span>Influencer Login</span>
             </button>
           </div>
         </div>
