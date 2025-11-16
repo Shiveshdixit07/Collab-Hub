@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { TrendingUp, Users, Building2, Instagram, Star, DollarSign } from 'lucide-react';
 
-const HomeView = memo(function HomeView({ onGotoInfluencer, onGotoBrand, onGotoInfluencerLogin }) {
+const HomeView = memo(function HomeView({ onGotoInfluencer, onGotoBrand, onGotoInfluencerLogin, onGotoBrandLogin }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
       {/* Animated background elements */}
@@ -36,7 +36,7 @@ const HomeView = memo(function HomeView({ onGotoInfluencer, onGotoBrand, onGotoI
             <br />Perfect <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Influencers</span>
           </h1>
           <p className="text-xl text-purple-200 mb-12 max-w-3xl mx-auto">
-            The ultimate platform where brands discover authentic influencers and creators find their perfect collaboration partners. 
+            The ultimate platform where brands discover authentic influencers and creators find their perfect collaboration partners.
             Get the best deals, maximize your reach, and build meaningful partnerships.
           </p>
 
@@ -72,12 +72,23 @@ const HomeView = memo(function HomeView({ onGotoInfluencer, onGotoBrand, onGotoI
               <Building2 className="h-6 w-6" />
               <span>Join as Brand</span>
             </button>
+          </div>
+
+          {/* Login Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
             <button
               onClick={onGotoInfluencerLogin}
-              className="group bg-white/10 hover:bg-white/20 text-white px-12 py-6 rounded-2xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl flex items-center space-x-3 border border-white/30"
+              className="group bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-xl font-medium text-base transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center space-x-2 border border-white/30"
             >
-              <TrendingUp className="h-6 w-6" />
+              <TrendingUp className="h-5 w-5" />
               <span>Influencer Login</span>
+            </button>
+            <button
+              onClick={onGotoBrandLogin}
+              className="group bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-xl font-medium text-base transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center space-x-2 border border-white/30"
+            >
+              <Building2 className="h-5 w-5" />
+              <span>Brand Login</span>
             </button>
           </div>
         </div>
