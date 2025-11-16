@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
 import { Search, Filter, Star, Users, Eye, TrendingUp, MapPin, Instagram, Youtube, Camera, Heart, MessageCircle, Share2, MoreVertical, Bell, Settings, Target, DollarSign, Calendar, Briefcase } from 'lucide-react';
 
-const BrandsDashboard = () => {
+const BrandsDashboard = ({ brand, onLogout }) => {
   const [selectedCampaignType, setSelectedCampaignType] = useState('all');
   const [sortBy, setSortBy] = useState('match_score');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Brand information
-  const brandInfo = {
-    name: "Wanderlust Tours",
-    logo: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=80&h=80&fit=crop",
-    industry: "Travel & Tourism",
-    location: "San Francisco, CA",
-    campaigns: 12,
-    budget: "$50,000",
-    activeCollabs: 8
+  // Use passed brand data or fallback to default
+  const brandInfo = brand || {
+    companyName: "Demo Company",
+    contactPerson: "Demo User",
+    email: "demo@company.com",
+    industry: "technology",
+    companySize: "medium",
+    budget: "10k-25k"
   };
 
   // Current campaigns
@@ -32,7 +31,7 @@ const BrandsDashboard = () => {
       id: 2,
       name: "European Backpacking",
       budget: "$8,000",
-      duration: "45 days", 
+      duration: "45 days",
       status: "planning",
       influencers: 2,
       reach: "280K"
@@ -168,7 +167,7 @@ const BrandsDashboard = () => {
 
   const campaignTypes = [
     "Adventure Tours",
-    "Cultural Experiences", 
+    "Cultural Experiences",
     "Budget Packages",
     "Luxury Escapes",
     "Solo Travel",
@@ -188,14 +187,12 @@ const BrandsDashboard = () => {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <img 
-                src={brandInfo.logo} 
-                alt={brandInfo.name}
-                className="w-12 h-12 rounded-lg object-cover"
-              />
+              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Briefcase className="w-6 h-6 text-white" />
+              </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{brandInfo.name}</h1>
-                <p className="text-gray-600">Find perfect influencers for your travel campaigns</p>
+                <h1 className="text-2xl font-bold text-gray-900">{brandInfo.companyName}</h1>
+                <p className="text-gray-600">Find perfect influencers for your campaigns</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -206,6 +203,14 @@ const BrandsDashboard = () => {
               <button className="p-2 hover:bg-gray-100 rounded-lg">
                 <Settings className="w-5 h-5 text-gray-600" />
               </button>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="text-gray-600 hover:text-gray-700 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                  Logout
+                </button>
+              )}
               <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
                 New Campaign
               </button>
@@ -219,12 +224,15 @@ const BrandsDashboard = () => {
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 mb-8 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold mb-2">Welcome back, {brandInfo.name}!</h2>
-              <p className="text-blue-100">Your campaigns are performing 15% better than last month</p>
+              <h2 className="text-xl font-semibold mb-2">Welcome back, {brandInfo.contactPerson}!</h2>
+              <p className="text-blue-100">Ready to find amazing influencers for your {brandInfo.industry} campaigns?</p>
+              <div className="mt-3 text-sm text-blue-100">
+                <span>Company Size: {brandInfo.companySize} • Budget Range: ${brandInfo.budget}</span>
+              </div>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold">${brandInfo.budget}</div>
-              <div className="text-blue-100">Total Campaign Budget</div>
+              <div className="text-blue-100">Budget Range</div>
             </div>
           </div>
         </div>
@@ -255,9 +263,8 @@ const BrandsDashboard = () => {
               <div key={campaign.id} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium text-gray-900">{campaign.name}</h4>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    campaign.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${campaign.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
                     {campaign.status}
                   </span>
                 </div>
@@ -295,7 +302,7 @@ const BrandsDashboard = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <select 
+              <select
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 value={selectedCampaignType}
                 onChange={(e) => setSelectedCampaignType(e.target.value)}
@@ -309,7 +316,7 @@ const BrandsDashboard = () => {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-gray-400" />
-                <select 
+                <select
                   className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -344,8 +351,8 @@ const BrandsDashboard = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="relative">
-                      <img 
-                        src={influencer.avatar} 
+                      <img
+                        src={influencer.avatar}
                         alt={influencer.name}
                         className="w-16 h-16 rounded-full object-cover"
                       />
@@ -400,7 +407,7 @@ const BrandsDashboard = () => {
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Previous Brand Collaborations</h4>
                 <div className="flex space-x-2">
                   {influencer.previousWork.map((brand, index) => (
-                    <span 
+                    <span
                       key={index}
                       className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
                     >
@@ -415,9 +422,9 @@ const BrandsDashboard = () => {
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Recent Content</h4>
                 <div className="flex space-x-2">
                   {influencer.recentPosts.map((post, index) => (
-                    <img 
+                    <img
                       key={index}
-                      src={post} 
+                      src={post}
                       alt={`Recent post ${index + 1}`}
                       className="w-16 h-16 rounded-lg object-cover"
                     />
