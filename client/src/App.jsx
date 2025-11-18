@@ -46,6 +46,7 @@ const InfluencerPlatform = () => {
   const [brandLoginError, setBrandLoginError] = useState('');
   const [currentInfluencer, setCurrentInfluencer] = useState(null);
   const [currentBrand, setCurrentBrand] = useState(null);
+  const [influencerSignupError, setInfluencerSignupError] = useState('');
 
   // Load influencer and brand from localStorage on mount (for page refresh)
   useEffect(() => {
@@ -103,11 +104,14 @@ const InfluencerPlatform = () => {
 
   const handleInfluencerSignupSuccess = async () => {
     try {
+      setInfluencerSignupError('');
       const response = await axios.post('http://localhost:8080/auth/signup/influencers', influencerForm);
       console.log(response.data);
       navigate('/login/influencer');
     } catch (error) {
+      const message = error?.response?.data?.message || error?.message || 'Error signing up influencer';
       console.error('Error signing up influencer:', error);
+      setInfluencerSignupError(message + (error?.response?.data?.details ? `: ${error.response.data.details}` : ''));
     }
   };
 
@@ -202,6 +206,7 @@ const InfluencerPlatform = () => {
             onChange={handleInfluencerInputChange}
             onBack={() => navigate('/')}
             onSuccess={handleInfluencerSignupSuccess}
+            error={influencerSignupError}
           />
         }
       />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { User, Heart, TrendingUp, DollarSign, MapPin, Tag, Instagram, LogOut } from 'lucide-react';
 
 const InfluencerDashboard = ({ influencer: influencerProp, onLogout }) => {
@@ -20,6 +21,15 @@ const InfluencerDashboard = ({ influencer: influencerProp, onLogout }) => {
     return followersRange.toUpperCase().replace('-', ' - ');
   };
 
+  const formatFollowersCount = (inf) => {
+    if (!inf) return 'N/A';
+    if (typeof inf.followersCount === 'number' && !isNaN(inf.followersCount)) {
+      return inf.followersCount.toLocaleString();
+    }
+    // fallback to range label
+    return formatFollowers(inf.followers);
+  };
+
   // Format category for display
   const formatCategory = (category) => {
     if (!category) return 'N/A';
@@ -38,21 +48,37 @@ const InfluencerDashboard = ({ influencer: influencerProp, onLogout }) => {
 
   const fullName = `${influencer.firstName} ${influencer.lastName}`;
   const stats = [
-    { label: 'Followers Range', value: formatFollowers(influencer.followers), icon: <User className="h-5 w-5" />, color: 'from-pink-500 to-purple-600' },
+    { label: 'Followers', value: formatFollowersCount(influencer), icon: <User className="h-5 w-5" />, color: 'from-pink-500 to-purple-600' },
     { label: 'Category', value: formatCategory(influencer.category), icon: <Tag className="h-5 w-5" />, color: 'from-red-500 to-pink-600' },
     { label: 'Location', value: influencer.location || 'N/A', icon: <MapPin className="h-5 w-5" />, color: 'from-blue-500 to-indigo-600' },
     { label: 'Instagram', value: `@${influencer.instagram}`, icon: <Instagram className="h-5 w-5" />, color: 'from-green-500 to-emerald-600' },
-    { label: 'Avg. Likes', value: '3,482', icon: <Heart className="h-5 w-5" />, color: 'from-red-500 to-pink-600' },
-    { label: 'Engagement', value: '6.2%', icon: <TrendingUp className="h-5 w-5" />, color: 'from-blue-500 to-indigo-600' },
+    { label: 'Avg. Likes', value: influencer.avgLikes ? influencer.avgLikes.toLocaleString() : '—', icon: <Heart className="h-5 w-5" />, color: 'from-red-500 to-pink-600' },
+    { label: 'Engagement', value: (typeof influencer.engagement === 'number') ? `${influencer.engagement}%` : '—', icon: <TrendingUp className="h-5 w-5" />, color: 'from-blue-500 to-indigo-600' },
     { label: 'Earnings (mo)', value: '$2,450', icon: <DollarSign className="h-5 w-5" />, color: 'from-green-500 to-emerald-600' },
 
   ];
 
-  const campaigns = [
-    { id: 1, brand: 'GlowBeauty', status: 'Active', payout: '$300', due: 'Sep 28' },
-    { id: 2, brand: 'FitLife', status: 'Review', payout: '$500', due: 'Oct 4' },
-    { id: 3, brand: 'TravelPro', status: 'Invited', payout: '$800', due: 'Oct 12' },
-  ];
+  const campaigns = (influencer && influencer.campaigns && influencer.campaigns.length)
+    ? influencer.campaigns
+    : [];
+
+  // Inbox items: invitations sent by brands that influencer can accept/reject
+  const inbox = campaigns.filter(c => c.status === 'Invited' || c.status === 'Review');
+
+  const updateCampaignStatus = async (campaignId, action) => {
+    if (!influencer || !influencer._id) return;
+    try {
+      const res = await axios.patch(`http://localhost:8080/auth/influencers/${influencer._id}/campaigns/${campaignId}/respond`, { action });
+      if (res.data && res.data.campaigns) {
+        const updated = { ...influencer, campaigns: res.data.campaigns };
+        setInfluencer(updated);
+        localStorage.setItem('currentInfluencer', JSON.stringify(updated));
+      }
+    } catch (err) {
+      console.error('Failed to update campaign status', err);
+      alert('Could not update campaign. Try again.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 py-10 px-6">
@@ -89,15 +115,46 @@ const InfluencerDashboard = ({ influencer: influencerProp, onLogout }) => {
             <button className="text-sm px-3 py-1.5 rounded-lg bg-gray-900 text-white">View all</button>
           </div>
           <div className="divide-y divide-gray-100">
-            {campaigns.map((c) => (
-              <div key={c.id} className="px-6 py-4 flex items-center justify-between">
-                <div className="font-medium text-gray-800">{c.brand}</div>
-                <div className="text-gray-500">{c.status}</div>
-                <div className="text-gray-800">{c.payout}</div>
-                <div className="text-gray-500">Due {c.due}</div>
-                <button className="text-sm px-3 py-1.5 rounded-lg bg-indigo-600 text-white">Open</button>
-              </div>
-            ))}
+            {campaigns.map((c, idx) => {
+              const dueLabel = c.due || (c.endDate ? new Date(c.endDate).toLocaleDateString() : 'TBD');
+              return (
+                <div key={c._id || idx} className="px-6 py-4 flex items-center justify-between">
+                  <div className="font-medium text-gray-800">{c.brand || 'Unnamed Campaign'}</div>
+                  <div className="text-gray-500">{c.status || 'Unknown'}</div>
+                  <div className="text-gray-800">{c.payout || '-'}</div>
+                  <div className="text-gray-500">Due {dueLabel}</div>
+                  <button className="text-sm px-3 py-1.5 rounded-lg bg-indigo-600 text-white">Open</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Campaign Inbox */}
+        <div className="mt-8 bg-white rounded-2xl shadow border border-gray-100">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">Campaign Inbox</h2>
+            <div className="text-sm text-gray-500">Invitations from brands</div>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {inbox.length === 0 && (
+              <div className="px-6 py-4 text-gray-500">No new invitations.</div>
+            )}
+            {inbox.map((c, idx) => {
+              const dueLabel = c.due || (c.endDate ? new Date(c.endDate).toLocaleDateString() : 'TBD');
+              return (
+                <div key={c._id || idx} className="px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-800">{c.brand || 'Unnamed Campaign'}</div>
+                    <div className="text-sm text-gray-500">Role: {c.role || 'Creator'} • Due {dueLabel}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => updateCampaignStatus(c._id || idx, 'accept')} className="text-sm px-3 py-1.5 rounded-lg bg-green-600 text-white">Accept</button>
+                    <button onClick={() => updateCampaignStatus(c._id || idx, 'reject')} className="text-sm px-3 py-1.5 rounded-lg bg-red-500 text-white">Reject</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Camera, User, Mail, Hash, MapPin, Lock } from 'lucide-react';
 
-const InfluencerSignup = memo(function InfluencerSignup({ form, onChange, onBack, onSuccess }) {
+const InfluencerSignup = memo(function InfluencerSignup({ form, onChange, onBack, onSuccess, error }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-indigo-100 py-12 px-4">
       <div className="max-w-2xl mx-auto">
@@ -12,7 +12,7 @@ const InfluencerSignup = memo(function InfluencerSignup({ form, onChange, onBack
                 <Camera className="h-8 w-8 text-white" />
                 <h2 className="text-3xl font-bold text-white">Join as Influencer</h2>
               </div>
-              <button 
+              <button
                 onClick={onBack}
                 className="text-white hover:text-pink-200 transition-colors"
               >
@@ -23,6 +23,11 @@ const InfluencerSignup = memo(function InfluencerSignup({ form, onChange, onBack
           </div>
 
           <div className="p-8">
+            {error && (
+              <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded">
+                {error}
+              </div>
+            )}
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -84,7 +89,7 @@ const InfluencerSignup = memo(function InfluencerSignup({ form, onChange, onBack
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Followers Count</label>
-                  <select 
+                  <select
                     value={form.followers}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                     onChange={(e) => onChange('followers', e.target.value)}
@@ -100,7 +105,7 @@ const InfluencerSignup = memo(function InfluencerSignup({ form, onChange, onBack
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Content Category</label>
-                  <select 
+                  <select
                     value={form.category}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                     onChange={(e) => onChange('category', e.target.value)}
