@@ -7,6 +7,7 @@ import BrandSignup from './components/BrandSignup';
 import BrandLogin from './components/BrandLogin';
 import InfluencerDashboard from './pages/InfluencerDashboard';
 import BrandDashboard from './pages/BrandDashboard';
+import InfluencerProfile from './pages/InfluencerProfile';
 import axios from 'axios';
 const InfluencerPlatform = () => {
   const location = useLocation();
@@ -248,6 +249,7 @@ const InfluencerPlatform = () => {
         }
       />
       <Route path="/influencer" element={<InfluencerDashboard influencer={currentInfluencer} onLogout={handleInfluencerLogout} />} />
+      <Route path="/influencer/:id" element={<InfluencerProfile />} />
       <Route path="/brand" element={<BrandDashboard brand={currentBrand} onLogout={handleBrandLogout} />} />
     </Routes>
   );

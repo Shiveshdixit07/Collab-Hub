@@ -161,4 +161,106 @@ router.post('/login/brands', async (req, res) => {
     }
 });
 
+// Recommend influencers for a brand based on industry, budget and influencer metrics
+router.get('/brands/:brandId/recommendations', async (req, res) => {
+    const { brandId } = req.params;
+    try {
+        const brand = await Brand.findById(brandId);
+        if (!brand) return res.status(404).json({ message: 'Brand not found' });
+
+        // Budget to follower median mapping
+        const budgetTargets = {
+            '1k-5k': [1000, 10000],
+            '5k-10k': [10000, 50000],
+            '10k-25k': [50000, 100000],
+            '25k-50k': [100000, 500000],
+            '50k-100k': [500000, 1000000],
+            '100k+': [1000000, 10000000]
+        };
+
+        const target = budgetTargets[brand.budget] || [10000, 50000];
+        const targetMid = (target[0] + target[1]) / 2;
+
+        // Fetch influencers (limit to 200 for performance)
+        const influencers = await Influencer.find().limit(200).lean();
+
+        function computeScore(inf) {
+            const categoryMatch = (inf.category && brand.industry && inf.category.toLowerCase().includes(brand.industry.toLowerCase())) ? 1 : 0;
+
+            const engagement = (typeof inf.engagement === 'number') ? inf.engagement : 0; // percent number
+            const engagementScore = Math.min(engagement, 10) / 10; // 0..1
+
+            const followers = (typeof inf.followersCount === 'number') ? inf.followersCount : null;
+            let followersScore = 0.5; // default
+            if (followers) {
+                const diffRatio = Math.abs(followers - targetMid) / targetMid; // 0 = perfect
+                followersScore = Math.max(0, 1 - Math.min(diffRatio, 1));
+            }
+
+            // Weighted sum: category 40%, engagement 35%, followers 25%
+            const score = Math.round((categoryMatch * 0.4 + engagementScore * 0.35 + followersScore * 0.25) * 100);
+            return { score, categoryMatch, engagementScore, followersScore };
+        }
+
+        const scored = influencers.map(i => {
+            const s = computeScore(i);
+            return { influencer: i, score: s.score, details: s };
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+
+        // Map to client-friendly shape and limit to top 20
+        const recommendations = scored.slice(0, 20).map((s, idx) => {
+            const inf = s.influencer;
+            return {
+                id: inf._id,
+                name: `${inf.firstName} ${inf.lastName}`,
+                handle: `@${inf.instagram}`,
+                avatar: null,
+                followers: inf.followersCount ? inf.followersCount.toLocaleString() : inf.followers,
+                engagement: (typeof inf.engagement === 'number') ? `${inf.engagement}%` : '—',
+                niche: inf.category || 'General',
+                location: inf.location || 'Unknown',
+                rating: 4.5,
+                price: inf.followersCount ? `$${Math.max(50, Math.round(inf.followersCount / 1000))}` : '$200',
+                platforms: ['instagram'],
+                matchScore: s.score,
+                audienceMatch: `${Math.min(100, Math.round(s.score * 0.9))}%`,
+                brandAlignment: s.details.categoryMatch ? 'Excellent' : 'Good',
+                previousWork: [],
+                avgViews: null,
+                demographics: {},
+                recentPosts: [],
+                tags: [],
+                verified: false,
+                responseTime: '< 24 hours',
+                campaignFit: `Suitable for ${brand.industry} campaigns`,
+                estimatedROI: `${(2 + (s.score / 100)).toFixed(1)}x`
+            };
+        });
+
+        return res.status(200).json({ recommendations });
+    } catch (error) {
+        console.error('Recommendation error:', error);
+        return res.status(500).json({ message: 'Error computing recommendations', error: error.message });
+    }
+});
+
+// Get influencer by id (public view)
+router.get('/influencers/:influencerId', async (req, res) => {
+    const { influencerId } = req.params;
+    try {
+        const influencer = await Influencer.findById(influencerId).lean();
+        if (!influencer) return res.status(404).json({ message: 'Influencer not found' });
+
+        // remove sensitive fields
+        delete influencer.password;
+
+        return res.status(200).json({ influencer });
+    } catch (error) {
+        console.error('Get influencer error:', error);
+        return res.status(500).json({ message: 'Error fetching influencer', error: error.message });
+    }
+});
+
 module.exports = router;

@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Star, Users, Eye, TrendingUp, MapPin, Instagram, Youtube, Camera, Heart, MessageCircle, Share2, MoreVertical, Bell, Settings, Target, DollarSign, Calendar, Briefcase } from 'lucide-react';
 
 const BrandsDashboard = ({ brand, onLogout }) => {
@@ -38,125 +40,9 @@ const BrandsDashboard = ({ brand, onLogout }) => {
     }
   ];
 
-  // Recommended influencers with match scores for Wanderlust Tours
-  const recommendedInfluencers = [
-    {
-      id: 1,
-      name: "Sarah Adventures",
-      handle: "@sarah_adventures",
-      avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b372?w=150&h=150&fit=crop&crop=face",
-      followers: "245K",
-      engagement: "4.8%",
-      niche: "Adventure Travel",
-      location: "Bali, Indonesia",
-      rating: 4.9,
-      price: "$500-800",
-      platforms: ["instagram", "youtube"],
-      matchScore: 96,
-      audienceMatch: "92%",
-      brandAlignment: "Excellent",
-      previousWork: ["Adventure Co.", "Mountain Gear"],
-      avgViews: "85K",
-      demographics: { age: "25-34", gender: "55% Female", location: "US, Europe, Asia" },
-      recentPosts: [
-        "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=100&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=100&h=100&fit=crop"
-      ],
-      tags: ["Adventure", "Solo Travel", "Nature", "Photography"],
-      verified: true,
-      responseTime: "< 2 hours",
-      campaignFit: "Perfect for Bali Adventure Package",
-      estimatedROI: "4.2x"
-    },
-    {
-      id: 2,
-      name: "Travel Couple",
-      handle: "@wanderlust_duo",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      followers: "180K",
-      engagement: "5.2%",
-      niche: "Couple Travel",
-      location: "Paris, France",
-      rating: 4.7,
-      price: "$400-650",
-      platforms: ["instagram"],
-      matchScore: 89,
-      audienceMatch: "87%",
-      brandAlignment: "Very Good",
-      previousWork: ["Romantic Getaways", "Luxury Hotels"],
-      avgViews: "62K",
-      demographics: { age: "28-40", gender: "65% Female", location: "US, Europe" },
-      recentPosts: [
-        "https://images.unsplash.com/photo-1502602898536-47ad22581b52?w=100&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1549144511-f099e773c147?w=100&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1520637836862-4d197d17c0a7?w=100&h=100&fit=crop"
-      ],
-      tags: ["Romance", "Europe", "Food", "Culture"],
-      verified: false,
-      responseTime: "< 4 hours",
-      campaignFit: "Great for European Packages",
-      estimatedROI: "3.8x"
-    },
-    {
-      id: 3,
-      name: "Budget Explorer",
-      handle: "@budget_nomad",
-      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-      followers: "320K",
-      engagement: "3.9%",
-      niche: "Budget Travel",
-      location: "Bangkok, Thailand",
-      rating: 4.6,
-      price: "$300-500",
-      platforms: ["instagram", "youtube"],
-      matchScore: 84,
-      audienceMatch: "81%",
-      brandAlignment: "Good",
-      previousWork: ["Hostel World", "Budget Airlines"],
-      avgViews: "95K",
-      demographics: { age: "22-30", gender: "48% Female", location: "Global" },
-      recentPosts: [
-        "https://images.unsplash.com/photo-1528181304800-259b08848526?w=100&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1506197603052-3cc9c3a201bd?w=100&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=100&h=100&fit=crop"
-      ],
-      tags: ["Budget", "Backpacking", "Southeast Asia", "Tips"],
-      verified: true,
-      responseTime: "< 1 hour",
-      campaignFit: "Ideal for Budget Campaigns",
-      estimatedROI: "5.1x"
-    },
-    {
-      id: 4,
-      name: "Solo Female Traveler",
-      handle: "@solo_she_travels",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face",
-      followers: "210K",
-      engagement: "5.7%",
-      niche: "Solo Female Travel",
-      location: "Tokyo, Japan",
-      rating: 4.9,
-      price: "$450-700",
-      platforms: ["instagram", "youtube"],
-      matchScore: 91,
-      audienceMatch: "89%",
-      brandAlignment: "Excellent",
-      previousWork: ["Solo Travel Co.", "Safety First"],
-      avgViews: "78K",
-      demographics: { age: "25-35", gender: "78% Female", location: "US, Europe, Asia" },
-      recentPosts: [
-        "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=100&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1528164344705-47542687000d?w=100&h=100&fit=crop",
-        "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=100&h=100&fit=crop"
-      ],
-      tags: ["Solo Travel", "Safety", "Culture", "Empowerment"],
-      verified: true,
-      responseTime: "< 2 hours",
-      campaignFit: "Perfect for Solo Travel Packages",
-      estimatedROI: "4.5x"
-    }
-  ];
+  const [recommendedInfluencers, setRecommendedInfluencers] = useState([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+  const [recError, setRecError] = useState(null);
 
   const stats = [
     { label: "Campaign Performance", value: "4.2x ROI", icon: TrendingUp, change: "+15%" },
@@ -176,9 +62,29 @@ const BrandsDashboard = ({ brand, onLogout }) => {
 
   const filteredInfluencers = recommendedInfluencers.filter(influencer =>
     influencer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    influencer.niche.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    influencer.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+    (influencer.niche || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (influencer.tags || []).some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      if (!brand || !brand._id) return;
+      setLoadingRecs(true);
+      setRecError(null);
+      try {
+        const res = await axios.get(`http://localhost:8080/auth/brands/${brand._id}/recommendations`);
+        setRecommendedInfluencers(res.data.recommendations || []);
+      } catch (err) {
+        console.error('Failed to fetch recommendations', err);
+        setRecError('Could not load recommendations');
+      } finally {
+        setLoadingRecs(false);
+      }
+    };
+    fetchRecommendations();
+  }, [brand]);
+
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -441,7 +347,7 @@ const BrandsDashboard = ({ brand, onLogout }) => {
                     <span>⚡ Responds in {influencer.responseTime}</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                    <button onClick={() => navigate(`/influencer/${influencer.id}`)} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
                       View Profile
                     </button>
                     <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
