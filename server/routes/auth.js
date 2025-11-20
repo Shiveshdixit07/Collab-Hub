@@ -246,6 +246,52 @@ router.get('/brands/:brandId/recommendations', async (req, res) => {
     }
 });
 
+// Send proposal from brand to influencer (adds entry to influencer inbox)
+router.post('/brands/:brandId/proposals', async (req, res) => {
+    const { brandId } = req.params;
+    const { influencerId, campaignName, role, compensation, timeline, deliverables, message } = req.body;
+
+    if (!influencerId) {
+        return res.status(400).json({ message: 'influencerId is required' });
+    }
+
+    try {
+        const brand = await Brand.findById(brandId);
+        if (!brand) return res.status(404).json({ message: 'Brand not found' });
+
+        const influencer = await Influencer.findById(influencerId);
+        if (!influencer) return res.status(404).json({ message: 'Influencer not found' });
+
+        const sanitize = (value) => typeof value === 'string' ? value.trim() : '';
+
+        const proposal = {
+            brand: brand.companyName,
+            brandId: brand._id,
+            campaignName: sanitize(campaignName) || `${brand.companyName} Collaboration`,
+            role: sanitize(role) || 'Creator',
+            payout: sanitize(compensation) || 'Negotiable',
+            due: sanitize(timeline) || 'TBD',
+            deliverables: sanitize(deliverables),
+            message: sanitize(message),
+            status: 'Invited'
+        };
+
+        influencer.campaigns.push(proposal);
+        await influencer.save();
+
+        const savedProposal = influencer.campaigns[influencer.campaigns.length - 1];
+
+        return res.status(201).json({
+            message: 'Proposal sent successfully',
+            campaign: savedProposal,
+            campaigns: influencer.campaigns
+        });
+    } catch (error) {
+        console.error('Proposal send error:', error);
+        return res.status(500).json({ message: 'Error sending proposal', error: error.message });
+    }
+});
+
 // Get influencer by id (public view)
 router.get('/influencers/:influencerId', async (req, res) => {
     const { influencerId } = req.params;
@@ -260,6 +306,103 @@ router.get('/influencers/:influencerId', async (req, res) => {
     } catch (error) {
         console.error('Get influencer error:', error);
         return res.status(500).json({ message: 'Error fetching influencer', error: error.message });
+    }
+});
+
+// Public brand profile for influencers to view
+router.get('/brands/:brandId/profile', async (req, res) => {
+    const { brandId } = req.params;
+    try {
+        const brand = await Brand.findById(brandId).lean();
+        if (!brand) return res.status(404).json({ message: 'Brand not found' });
+
+        const profile = {
+            _id: brand._id,
+            companyName: brand.companyName,
+            contactPerson: brand.contactPerson,
+            phone: brand.phone,
+            email: brand.email,
+            industry: brand.industry,
+            companySize: brand.companySize,
+            budget: brand.budget,
+            createdAt: brand.createdAt
+        };
+
+        return res.status(200).json({ profile });
+    } catch (error) {
+        console.error('Brand profile fetch error:', error);
+        return res.status(500).json({ message: 'Error fetching brand profile', error: error.message });
+    }
+});
+
+// Get accepted campaigns for a brand
+router.get('/brands/:brandId/campaigns', async (req, res) => {
+    const { brandId } = req.params;
+    try {
+        const brand = await Brand.findById(brandId);
+        if (!brand) return res.status(404).json({ message: 'Brand not found' });
+
+        // Find all influencers with campaigns from this brand that are accepted (status: 'Active')
+        const influencers = await Influencer.find({
+            'campaigns.brandId': brandId,
+            'campaigns.status': 'Active'
+        }).lean();
+
+        // Extract and group campaigns by campaignName
+        const campaignMap = new Map();
+
+        influencers.forEach(influencer => {
+            influencer.campaigns.forEach(campaign => {
+                if (campaign.brandId && campaign.brandId.toString() === brandId && campaign.status === 'Active') {
+                    const campaignName = campaign.campaignName || `${brand.companyName} Collaboration`;
+                    
+                    if (!campaignMap.has(campaignName)) {
+                        campaignMap.set(campaignName, {
+                            campaignName,
+                            influencers: [],
+                            totalPayout: 0,
+                            status: 'active'
+                        });
+                    }
+
+                    const campaignData = campaignMap.get(campaignName);
+                    campaignData.influencers.push({
+                        influencerId: influencer._id,
+                        influencerName: `${influencer.firstName} ${influencer.lastName}`,
+                        influencerHandle: `@${influencer.instagram}`,
+                        payout: campaign.payout,
+                        due: campaign.due,
+                        role: campaign.role,
+                        deliverables: campaign.deliverables
+                    });
+
+                    // Try to parse payout for total calculation
+                    const payoutStr = campaign.payout || '0';
+                    const payoutMatch = payoutStr.match(/[\d,]+/);
+                    if (payoutMatch) {
+                        const payoutNum = parseInt(payoutMatch[0].replace(/,/g, ''), 10);
+                        if (!isNaN(payoutNum)) {
+                            campaignData.totalPayout += payoutNum;
+                        }
+                    }
+                }
+            });
+        });
+
+        // Convert map to array
+        const campaigns = Array.from(campaignMap.values()).map(campaign => ({
+            id: campaign.campaignName,
+            name: campaign.campaignName,
+            budget: campaign.totalPayout > 0 ? `$${campaign.totalPayout.toLocaleString()}` : 'TBD',
+            influencers: campaign.influencers.length,
+            status: campaign.status,
+            influencerDetails: campaign.influencers
+        }));
+
+        return res.status(200).json({ campaigns });
+    } catch (error) {
+        console.error('Get brand campaigns error:', error);
+        return res.status(500).json({ message: 'Error fetching campaigns', error: error.message });
     }
 });
 

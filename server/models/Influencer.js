@@ -20,12 +20,16 @@ const influencerSchema = new mongoose.Schema(
             type: [
                 {
                     brand: { type: String },
+                    brandId: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
+                    campaignName: { type: String },
                     status: { type: String, enum: ['Active', 'Review', 'Invited', 'Completed', 'Cancelled'], default: 'Invited' },
                     payout: { type: String },
                     due: { type: String },
                     startDate: { type: Date },
                     endDate: { type: Date },
-                    role: { type: String }
+                    role: { type: String },
+                    deliverables: { type: String },
+                    message: { type: String }
                 }
             ],
             default: []

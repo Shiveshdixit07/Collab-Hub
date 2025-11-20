@@ -18,35 +18,29 @@ const BrandsDashboard = ({ brand, onLogout }) => {
     budget: "10k-25k"
   };
 
-  // Current campaigns
-  const activeCampaigns = [
-    {
-      id: 1,
-      name: "Bali Adventure Package",
-      budget: "$15,000",
-      duration: "30 days",
-      status: "active",
-      influencers: 3,
-      reach: "450K"
-    },
-    {
-      id: 2,
-      name: "European Backpacking",
-      budget: "$8,000",
-      duration: "45 days",
-      status: "planning",
-      influencers: 2,
-      reach: "280K"
-    }
-  ];
-
+  const [activeCampaigns, setActiveCampaigns] = useState([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [campaignsError, setCampaignsError] = useState(null);
   const [recommendedInfluencers, setRecommendedInfluencers] = useState([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [recError, setRecError] = useState(null);
+  const [proposalModal, setProposalModal] = useState({ open: false, influencer: null });
+  const [proposalForm, setProposalForm] = useState({
+    campaignName: '',
+    role: '',
+    compensation: '',
+    timeline: '',
+    deliverables: '',
+    message: ''
+  });
+  const [proposalStatus, setProposalStatus] = useState({ sending: false, success: null, error: null });
+
+  // Calculate total influencers across all active campaigns
+  const totalActiveInfluencers = activeCampaigns.reduce((sum, campaign) => sum + (campaign.influencers || 0), 0);
 
   const stats = [
     { label: "Campaign Performance", value: "4.2x ROI", icon: TrendingUp, change: "+15%" },
-    { label: "Active Collaborations", value: "8", icon: Users, change: "+3" },
+    { label: "Active Collaborations", value: totalActiveInfluencers.toString(), icon: Users, change: `${activeCampaigns.length} campaigns` },
     { label: "Total Reach This Month", value: "2.1M", icon: Eye, change: "+22%" },
     { label: "Budget Utilized", value: "68%", icon: DollarSign, change: "$34K spent" }
   ];
@@ -84,7 +78,88 @@ const BrandsDashboard = ({ brand, onLogout }) => {
     fetchRecommendations();
   }, [brand]);
 
+  useEffect(() => {
+    const fetchActiveCampaigns = async () => {
+      if (!brand || !brand._id) return;
+      setLoadingCampaigns(true);
+      setCampaignsError(null);
+      try {
+        const res = await axios.get(`http://localhost:8080/auth/brands/${brand._id}/campaigns`);
+        setActiveCampaigns(res.data.campaigns || []);
+      } catch (err) {
+        console.error('Failed to fetch campaigns', err);
+        setCampaignsError('Could not load campaigns');
+      } finally {
+        setLoadingCampaigns(false);
+      }
+    };
+    fetchActiveCampaigns();
+  }, [brand]);
+
+  const resetProposalForm = () => {
+    setProposalForm({
+      campaignName: '',
+      role: '',
+      compensation: '',
+      timeline: '',
+      deliverables: '',
+      message: ''
+    });
+  };
+
+  const openProposalModal = (influencer) => {
+    resetProposalForm();
+    setProposalStatus({ sending: false, success: null, error: null });
+    setProposalModal({ open: true, influencer });
+  };
+
+  const closeProposalModal = () => {
+    setProposalModal({ open: false, influencer: null });
+  };
+
+  const handleProposalChange = (field, value) => {
+    setProposalForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSendProposal = async (e) => {
+    e.preventDefault();
+    if (proposalStatus.sending) return;
+
+    if (!brand || !brand._id) {
+      setProposalStatus({ sending: false, success: null, error: 'Please log in as a brand to send proposals.' });
+      return;
+    }
+
+    if (!proposalModal.influencer) {
+      setProposalStatus({ sending: false, success: null, error: 'Select an influencer to continue.' });
+      return;
+    }
+
+    const influencerId = proposalModal.influencer.id || proposalModal.influencer._id;
+    if (!influencerId) {
+      setProposalStatus({ sending: false, success: null, error: 'Unable to identify influencer. Try refreshing.' });
+      return;
+    }
+
+    try {
+      setProposalStatus({ sending: true, success: null, error: null });
+      await axios.post(`http://localhost:8080/auth/brands/${brand._id}/proposals`, {
+        influencerId,
+        ...proposalForm
+      });
+      setProposalStatus({ sending: false, success: 'Proposal sent!', error: null });
+      setTimeout(() => {
+        closeProposalModal();
+      }, 1200);
+    } catch (err) {
+      console.error('Failed to send proposal', err);
+      const message = err?.response?.data?.message || 'Could not send proposal. Try again.';
+      setProposalStatus({ sending: false, success: null, error: message });
+    }
+  };
+
   const navigate = useNavigate();
+  const canSendProposal = Boolean(brand && brand._id);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,33 +239,53 @@ const BrandsDashboard = ({ brand, onLogout }) => {
         {/* Active Campaigns */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Active Campaigns</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {activeCampaigns.map((campaign) => (
-              <div key={campaign.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-gray-900">{campaign.name}</h4>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${campaign.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                    {campaign.status}
-                  </span>
+          {loadingCampaigns && (
+            <div className="text-center py-8 text-gray-500">Loading campaigns...</div>
+          )}
+          {campaignsError && (
+            <div className="text-center py-8 text-red-500">{campaignsError}</div>
+          )}
+          {!loadingCampaigns && !campaignsError && activeCampaigns.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              No active campaigns yet. Send proposals to influencers to get started!
+            </div>
+          )}
+          {!loadingCampaigns && !campaignsError && activeCampaigns.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeCampaigns.map((campaign) => (
+                <div key={campaign.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-gray-900">{campaign.name}</h4>
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {campaign.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                    <div>
+                      <p className="text-gray-600">Total Budget</p>
+                      <p className="font-medium">{campaign.budget}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Influencers</p>
+                      <p className="font-medium">{campaign.influencers}</p>
+                    </div>
+                  </div>
+                  {campaign.influencerDetails && campaign.influencerDetails.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-xs text-gray-500 mb-2">Collaborating Influencers:</p>
+                      <div className="space-y-1">
+                        {campaign.influencerDetails.map((inf, idx) => (
+                          <div key={idx} className="text-xs text-gray-700">
+                            {inf.influencerName} ({inf.influencerHandle}) - {inf.payout || 'Negotiable'}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-600">Budget</p>
-                    <p className="font-medium">{campaign.budget}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Influencers</p>
-                    <p className="font-medium">{campaign.influencers}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Reach</p>
-                    <p className="font-medium">{campaign.reach}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Filters and Search */}
@@ -347,10 +442,20 @@ const BrandsDashboard = ({ brand, onLogout }) => {
                     <span>⚡ Responds in {influencer.responseTime}</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <button onClick={() => navigate(`/influencer/${influencer.id}`)} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/influencer/${influencer.id}`)}
+                      className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                    >
                       View Profile
                     </button>
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                    <button
+                      type="button"
+                      onClick={() => openProposalModal(influencer)}
+                      disabled={!canSendProposal}
+                      title={canSendProposal ? 'Send a proposal to this influencer' : 'Please log in as a brand to send proposals'}
+                      className={`bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium ${!canSendProposal ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                    >
                       Send Proposal
                     </button>
                   </div>
@@ -367,6 +472,122 @@ const BrandsDashboard = ({ brand, onLogout }) => {
           </button>
         </div>
       </div>
+
+      {proposalModal.open && proposalModal.influencer && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-6">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 relative">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-sm text-gray-500 uppercase tracking-wide">Send Proposal To</p>
+                <h3 className="text-2xl font-semibold text-gray-900">{proposalModal.influencer.name}</h3>
+                <p className="text-gray-500">{proposalModal.influencer.handle}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeProposalModal}
+                className="text-gray-500 hover:text-gray-700 rounded-full p-2"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSendProposal} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Campaign Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={proposalForm.campaignName}
+                    onChange={(e) => handleProposalChange('campaignName', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g. Summer Escape Launch"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role / Deliverable Type</label>
+                  <input
+                    type="text"
+                    required
+                    value={proposalForm.role}
+                    onChange={(e) => handleProposalChange('role', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g. Instagram Reel + Story set"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Compensation</label>
+                  <input
+                    type="text"
+                    required
+                    value={proposalForm.compensation}
+                    onChange={(e) => handleProposalChange('compensation', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="$2,500 per deliverable"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Timeline / Due Date</label>
+                  <input
+                    type="text"
+                    required
+                    value={proposalForm.timeline}
+                    onChange={(e) => handleProposalChange('timeline', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Content live by Aug 15"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deliverables</label>
+                <textarea
+                  value={proposalForm.deliverables}
+                  onChange={(e) => handleProposalChange('deliverables', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="List expected deliverables..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Personal Message</label>
+                <textarea
+                  value={proposalForm.message}
+                  onChange={(e) => handleProposalChange('message', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="4"
+                  placeholder="Introduce your campaign and expectations..."
+                />
+              </div>
+
+              {proposalStatus.error && (
+                <p className="text-sm text-red-600">{proposalStatus.error}</p>
+              )}
+              {proposalStatus.success && (
+                <p className="text-sm text-green-600">{proposalStatus.success}</p>
+              )}
+
+              <div className="flex items-center justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeProposalModal}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={proposalStatus.sending}
+                  className={`px-5 py-2 rounded-lg text-white font-medium ${proposalStatus.sending ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                  {proposalStatus.sending ? 'Sending...' : 'Send Proposal'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
