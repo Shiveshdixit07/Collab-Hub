@@ -38,11 +38,48 @@ const BrandsDashboard = ({ brand, onLogout }) => {
   // Calculate total influencers across all active campaigns
   const totalActiveInfluencers = activeCampaigns.reduce((sum, campaign) => sum + (campaign.influencers || 0), 0);
 
+  // Calculate total budget utilized from active campaigns (accepted by influencers)
+  const totalBudgetUtilized = activeCampaigns.reduce((sum, campaign) => {
+    if (campaign.influencerDetails && campaign.influencerDetails.length > 0) {
+      const campaignTotal = campaign.influencerDetails.reduce((campaignSum, influencer) => {
+        const payoutStr = influencer.payout || '0';
+        // Extract numeric value from payout string (handles formats like "$2,500", "2500", "$2500", etc.)
+        const payoutMatch = payoutStr.match(/[\d,]+/);
+        if (payoutMatch) {
+          const payoutNum = parseInt(payoutMatch[0].replace(/,/g, ''), 10);
+          if (!isNaN(payoutNum)) {
+            return campaignSum + payoutNum;
+          }
+        }
+        return campaignSum;
+      }, 0);
+      return sum + campaignTotal;
+    }
+    return sum;
+  }, 0);
+
+  // Format budget utilized for display
+  const formattedBudgetUtilized = totalBudgetUtilized > 0 
+    ? `$${totalBudgetUtilized}` 
+    : '$0';
+  
+  const budgetUtilizedPercentage = brandInfo.budget 
+    ? (() => {
+        // Try to extract budget range (e.g., "10k-25k" -> use max value 25k)
+        const budgetMatch = brandInfo.budget.match(/(\d+)[kK]/);
+        if (budgetMatch) {
+          const maxBudgetK = parseInt(budgetMatch[1], 10);
+          const maxBudget = maxBudgetK * 1000;
+          const percentage = maxBudget > 0 ? Math.round((totalBudgetUtilized / maxBudget) * 100) : 0;
+          return `${percentage}%`;
+        }
+        return 'N/A';
+      })()
+    : 'N/A';
+
   const stats = [
-    { label: "Campaign Performance", value: "4.2x ROI", icon: TrendingUp, change: "+15%" },
     { label: "Active Collaborations", value: totalActiveInfluencers.toString(), icon: Users, change: `${activeCampaigns.length} campaigns` },
-    { label: "Total Reach This Month", value: "2.1M", icon: Eye, change: "+22%" },
-    { label: "Budget Utilized", value: "68%", icon: DollarSign, change: "$34K spent" }
+    { label: "Budget Utilized", value: budgetUtilizedPercentage, icon: DollarSign, change: `${formattedBudgetUtilized} spent` }
   ];
 
   const campaignTypes = [
@@ -177,13 +214,7 @@ const BrandsDashboard = ({ brand, onLogout }) => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <button className="p-2 hover:bg-gray-100 rounded-lg relative">
-                <Bell className="w-5 h-5 text-gray-600" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-              </button>
-              <button className="p-2 hover:bg-gray-100 rounded-lg">
-                <Settings className="w-5 h-5 text-gray-600" />
-              </button>
+              
               {onLogout && (
                 <button
                   onClick={onLogout}
@@ -192,9 +223,7 @@ const BrandsDashboard = ({ brand, onLogout }) => {
                   Logout
                 </button>
               )}
-              <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                New Campaign
-              </button>
+              
             </div>
           </div>
         </div>
@@ -303,16 +332,7 @@ const BrandsDashboard = ({ brand, onLogout }) => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <select
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={selectedCampaignType}
-                onChange={(e) => setSelectedCampaignType(e.target.value)}
-              >
-                <option value="all">All Campaign Types</option>
-                {campaignTypes.map((type) => (
-                  <option key={type} value={type.toLowerCase()}>{type}</option>
-                ))}
-              </select>
+              
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -403,43 +423,14 @@ const BrandsDashboard = ({ brand, onLogout }) => {
                 </div>
               </div>
 
-              {/* Previous Brand Work */}
-              <div className="px-6 pb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Previous Brand Collaborations</h4>
-                <div className="flex space-x-2">
-                  {influencer.previousWork.map((brand, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                    >
-                      {brand}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Recent Content */}
-              <div className="px-6 pb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Recent Content</h4>
-                <div className="flex space-x-2">
-                  {influencer.recentPosts.map((post, index) => (
-                    <img
-                      key={index}
-                      src={post}
-                      alt={`Recent post ${index + 1}`}
-                      className="w-16 h-16 rounded-lg object-cover"
-                    />
-                  ))}
-                </div>
-              </div>
-
+             
               {/* Footer Actions */}
               <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
                     <span className="font-medium">{influencer.price}</span> per post
                     <br />
-                    <span>⚡ Responds in {influencer.responseTime}</span>
+                    {/* <span>⚡ Responds in {influencer.responseTime}</span> */}
                   </div>
                   <div className="flex items-center space-x-3">
                     <button
@@ -463,13 +454,6 @@ const BrandsDashboard = ({ brand, onLogout }) => {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Load More */}
-        <div className="text-center mt-8">
-          <button className="bg-white text-gray-700 px-6 py-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors font-medium">
-            View More Recommendations
-          </button>
         </div>
       </div>
 

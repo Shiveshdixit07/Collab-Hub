@@ -222,7 +222,7 @@ router.get('/brands/:brandId/recommendations', async (req, res) => {
                 niche: inf.category || 'General',
                 location: inf.location || 'Unknown',
                 rating: 4.5,
-                price: inf.followersCount ? `$${Math.max(50, Math.round(inf.followersCount / 1000))}` : '$200',
+                price: inf.followersCount ? `$${Math.max(50, Math.round(inf.followersCount / 10000))}` : '$200',
                 platforms: ['instagram'],
                 matchScore: s.score,
                 audienceMatch: `${Math.min(100, Math.round(s.score * 0.9))}%`,

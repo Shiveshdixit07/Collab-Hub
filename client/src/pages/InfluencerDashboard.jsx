@@ -114,7 +114,7 @@ const InfluencerDashboard = ({ influencer: influencerProp, onLogout }) => {
     { label: 'Instagram', value: `@${influencer.instagram}`, icon: <Instagram className="h-5 w-5" />, color: 'from-green-500 to-emerald-600' },
     { label: 'Avg. Likes', value: influencer.avgLikes ? influencer.avgLikes.toLocaleString() : '—', icon: <Heart className="h-5 w-5" />, color: 'from-red-500 to-pink-600' },
     { label: 'Engagement', value: (typeof influencer.engagement === 'number') ? `${influencer.engagement}%` : '—', icon: <TrendingUp className="h-5 w-5" />, color: 'from-blue-500 to-indigo-600' },
-    { label: 'Earnings (mo)', value: '$2,450', icon: <DollarSign className="h-5 w-5" />, color: 'from-green-500 to-emerald-600' },
+    
 
   ];
 
