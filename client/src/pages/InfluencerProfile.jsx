@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { User, Heart, TrendingUp, MapPin, Instagram, ArrowLeft } from 'lucide-react';
+import { User, Heart, TrendingUp, MapPin, ArrowLeft } from 'lucide-react';
 
 const InfluencerProfile = () => {
     const { id } = useParams();

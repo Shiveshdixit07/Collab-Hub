@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Star, Users, Eye, TrendingUp, MapPin, Instagram, Youtube, Camera, Heart, MessageCircle, Share2, MoreVertical, Bell, Settings, Target, DollarSign, Calendar, Briefcase } from 'lucide-react';
+import { Search, Star, Users, MapPin, Target, DollarSign, Briefcase } from 'lucide-react';
 
 const BrandsDashboard = ({ brand, onLogout }) => {
-  const [selectedCampaignType, setSelectedCampaignType] = useState('all');
   const [sortBy, setSortBy] = useState('match_score');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -80,15 +79,6 @@ const BrandsDashboard = ({ brand, onLogout }) => {
   const stats = [
     { label: "Active Collaborations", value: totalActiveInfluencers.toString(), icon: Users, change: `${activeCampaigns.length} campaigns` },
     { label: "Budget Utilized", value: budgetUtilizedPercentage, icon: DollarSign, change: `${formattedBudgetUtilized} spent` }
-  ];
-
-  const campaignTypes = [
-    "Adventure Tours",
-    "Cultural Experiences",
-    "Budget Packages",
-    "Luxury Escapes",
-    "Solo Travel",
-    "Group Tours"
   ];
 
   const filteredInfluencers = recommendedInfluencers.filter(influencer =>
@@ -336,17 +326,7 @@ const BrandsDashboard = ({ brand, onLogout }) => {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-gray-400" />
-                <select
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                >
-                  <option value="match_score">Best Match</option>
-                  <option value="engagement">Highest Engagement</option>
-                  <option value="followers">Most Followers</option>
-                  <option value="roi">Best ROI</option>
-                </select>
+                
               </div>
             </div>
           </div>
@@ -356,7 +336,6 @@ const BrandsDashboard = ({ brand, onLogout }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredInfluencers.map((influencer) => (
             <div key={influencer.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
-              {/* Match Score Badge */}
               <div className="bg-gradient-to-r from-green-500 to-green-600 p-3">
                 <div className="flex items-center justify-between text-white">
                   <div className="flex items-center space-x-2">

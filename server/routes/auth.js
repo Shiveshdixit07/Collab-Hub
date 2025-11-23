@@ -161,81 +161,252 @@ router.post('/login/brands', async (req, res) => {
     }
 });
 
-// Recommend influencers for a brand based on industry, budget and influencer metrics
 router.get('/brands/:brandId/recommendations', async (req, res) => {
     const { brandId } = req.params;
     try {
         const brand = await Brand.findById(brandId);
         if (!brand) return res.status(404).json({ message: 'Brand not found' });
 
-        // Budget to follower median mapping
-        const budgetTargets = {
-            '1k-5k': [1000, 10000],
-            '5k-10k': [10000, 50000],
-            '10k-25k': [50000, 100000],
-            '25k-50k': [100000, 500000],
-            '50k-100k': [500000, 1000000],
-            '100k+': [1000000, 10000000]
+        // Industry category mapping for semantic matching
+        const industryKeywords = {
+            'fashion': ['fashion', 'style', 'clothing', 'apparel', 'outfit', 'wardrobe', 'trend'],
+            'beauty': ['beauty', 'makeup', 'cosmetic', 'skincare', 'glam', 'aesthetic'],
+            'technology': ['tech', 'technology', 'gadget', 'digital', 'innovation', 'software', 'app'],
+            'food': ['food', 'recipe', 'cooking', 'culinary', 'restaurant', 'dining', 'chef'],
+            'health': ['health', 'fitness', 'wellness', 'workout', 'nutrition', 'yoga', 'gym'],
+            'travel': ['travel', 'tourism', 'adventure', 'wanderlust', 'destination', 'vacation'],
+            'automotive': ['car', 'automotive', 'vehicle', 'auto', 'driving', 'motor'],
+            'other': []
         };
 
-        const target = budgetTargets[brand.budget] || [10000, 50000];
-        const targetMid = (target[0] + target[1]) / 2;
+        // Budget to optimal follower range mapping (for better targeting)
+        const budgetTargets = {
+            '1k-5k': { min: 1000, max: 50000, optimal: 10000 },
+            '5k-10k': { min: 5000, max: 100000, optimal: 30000 },
+            '10k-25k': { min: 10000, max: 500000, optimal: 100000 },
+            '25k-50k': { min: 50000, max: 1000000, optimal: 300000 },
+            '50k-100k': { min: 100000, max: 2000000, optimal: 750000 },
+            '100k+': { min: 500000, max: 1000000000, optimal: 20000000 }
+        };
 
-        // Fetch influencers (limit to 200 for performance)
-        const influencers = await Influencer.find().limit(200).lean();
+        const budgetConfig = budgetTargets[brand.budget] || budgetTargets['10k-25k'];
 
-        function computeScore(inf) {
-            const categoryMatch = (inf.category && brand.industry && inf.category.toLowerCase().includes(brand.industry.toLowerCase())) ? 1 : 0;
+        // Fetch all influencers
+        const influencers = await Influencer.find().lean();
 
-            const engagement = (typeof inf.engagement === 'number') ? inf.engagement : 0; // percent number
-            const engagementScore = Math.min(engagement, 10) / 10; // 0..1
+        // Calculate normalization factors for engagement and followers
+        const engagements = influencers
+            .map(inf => typeof inf.engagement === 'number' ? inf.engagement : 0)
+            .filter(e => e > 0);
+        const maxEngagement = engagements.length > 0 ? Math.max(...engagements) : 10;
+        const avgEngagement = engagements.length > 0 
+            ? engagements.reduce((a, b) => a + b, 0) / engagements.length 
+            : 5;
 
-            const followers = (typeof inf.followersCount === 'number') ? inf.followersCount : null;
-            let followersScore = 0.5; // default
-            if (followers) {
-                const diffRatio = Math.abs(followers - targetMid) / targetMid; // 0 = perfect
-                followersScore = Math.max(0, 1 - Math.min(diffRatio, 1));
+        const followers = influencers
+            .map(inf => typeof inf.followersCount === 'number' ? inf.followersCount : 0)
+            .filter(f => f > 0);
+        const maxFollowers = followers.length > 0 ? Math.max(...followers) : 1000000;
+
+        // Industry keywords for semantic matching
+        const brandKeywords = industryKeywords[brand.industry] || [];
+
+        /**
+         * Advanced Multi-Factor Scoring Algorithm
+         * Uses weighted ensemble of multiple signals
+         */
+        function computeAdvancedScore(inf) {
+            // 1. Industry/Category Match Score (0-1) - 30% weight
+            let categoryScore = 0;
+            if (inf.category && brand.industry) {
+                const catLower = inf.category.toLowerCase();
+                const indLower = brand.industry.toLowerCase();
+                
+                // Exact match
+                if (catLower === indLower) {
+                    categoryScore = 1.0;
+                }
+                // Contains match
+                else if (catLower.includes(indLower) || indLower.includes(catLower)) {
+                    categoryScore = 0.8;
+                }
+                // Keyword-based semantic match
+                else {
+                    const keywordMatch = brandKeywords.some(keyword => 
+                        catLower.includes(keyword.toLowerCase())
+                    );
+                    categoryScore = keywordMatch ? 0.6 : 0.2;
+                }
             }
 
-            // Weighted sum: category 40%, engagement 35%, followers 25%
-            const score = Math.round((categoryMatch * 0.4 + engagementScore * 0.35 + followersScore * 0.25) * 100);
-            return { score, categoryMatch, engagementScore, followersScore };
+            // 2. Engagement Quality Score (0-1) - 25% weight
+            // Normalized engagement rate with bonus for high engagement
+            let engagementScore = 0.5; // default
+            if (typeof inf.engagement === 'number' && inf.engagement > 0) {
+                // Normalize to 0-1 range, with bonus for above-average engagement
+                const normalized = Math.min(inf.engagement / maxEngagement, 1);
+                const aboveAvgBonus = inf.engagement > avgEngagement ? 0.2 : 0;
+                engagementScore = Math.min(1, normalized + aboveAvgBonus);
+            }
+
+            // 3. Follower Reach Score (0-1) - 20% weight
+            // Optimal range matching with Gaussian-like distribution
+            let followersScore = 0.3; // default
+            if (typeof inf.followersCount === 'number' && inf.followersCount > 0) {
+                const followers = inf.followersCount;
+                
+                // Check if within acceptable range
+                if (followers >= budgetConfig.min && followers <= budgetConfig.max) {
+                    // Calculate distance from optimal (closer = better)
+                    const distanceFromOptimal = Math.abs(followers - budgetConfig.optimal);
+                    const maxDistance = budgetConfig.max - budgetConfig.min;
+                    const normalizedDistance = Math.min(distanceFromOptimal / maxDistance, 1);
+                    
+                    // Gaussian-like scoring (closer to optimal = higher score)
+                    followersScore = Math.max(0.5, 1 - (normalizedDistance * 0.5));
+                } else if (followers < budgetConfig.min) {
+                    // Too small, but still give some credit
+                    followersScore = 0.2;
+                } else {
+                    // Too large, but might still be valuable
+                    followersScore = 0.4;
+                }
+            }
+
+            // 4. Content Quality Score (0-1) - 10% weight
+            // Based on average likes normalized by followers
+            let contentQualityScore = 0.5;
+            if (typeof inf.avgLikes === 'number' && inf.avgLikes > 0 && 
+                typeof inf.followersCount === 'number' && inf.followersCount > 0) {
+                const likesPerFollower = inf.avgLikes / inf.followersCount;
+                // Good engagement is typically 1-5% likes per follower
+                contentQualityScore = Math.min(1, likesPerFollower * 20); // Scale to 0-1
+            }
+
+            // 5. Historical Performance Score (0-1) - 10% weight
+            // Based on completed vs total campaigns
+            let performanceScore = 0.5;
+            if (inf.campaigns && Array.isArray(inf.campaigns)) {
+                const totalCampaigns = inf.campaigns.length;
+                const completedCampaigns = inf.campaigns.filter(c => c.status === 'Completed').length;
+                const activeCampaigns = inf.campaigns.filter(c => c.status === 'Active').length;
+                
+                if (totalCampaigns > 0) {
+                    // Completion rate
+                    const completionRate = completedCampaigns / totalCampaigns;
+                    // Active rate (shows they accept offers)
+                    const activeRate = activeCampaigns / totalCampaigns;
+                    performanceScore = (completionRate * 0.6) + (activeRate * 0.4);
+                }
+            }
+
+            // 6. Availability Score (0-1) - 5% weight
+            // Prefer influencers with fewer active campaigns (more available)
+            let availabilityScore = 0.7; // default
+            if (inf.campaigns && Array.isArray(inf.campaigns)) {
+                const activeCount = inf.campaigns.filter(c => c.status === 'Active').length;
+                // Fewer active campaigns = more available
+                availabilityScore = Math.max(0.3, 1 - (activeCount * 0.2));
+            }
+
+            // Weighted ensemble scoring
+            const finalScore = (
+                categoryScore * 0.35 +      // Industry match
+                engagementScore * 0.05 +    // Engagement quality
+                followersScore * 0.30 +     // Follower reach
+                contentQualityScore * 0.10 + // Content quality
+                performanceScore * 0.10 +    // Historical performance
+                availabilityScore * 0.05     // Availability
+            );
+
+            return {
+                score: Math.round(finalScore * 100),
+                categoryScore,
+                engagementScore,
+                followersScore,
+                contentQualityScore,
+                performanceScore,
+                availabilityScore
+            };
         }
 
+        // Score all influencers
         const scored = influencers.map(i => {
-            const s = computeScore(i);
+            const s = computeAdvancedScore(i);
             return { influencer: i, score: s.score, details: s };
         });
 
-        scored.sort((a, b) => b.score - a.score);
+        // Sort by score (descending)
+        scored.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            // Tie-breaker: prefer higher engagement
+            const aEng = typeof a.influencer.engagement === 'number' ? a.influencer.engagement : 0;
+            const bEng = typeof b.influencer.engagement === 'number' ? b.influencer.engagement : 0;
+            return bEng - aEng;
+        });
 
-        // Map to client-friendly shape and limit to top 20
-        const recommendations = scored.slice(0, 20).map((s, idx) => {
+        // Map to client-friendly shape and limit to top 30 (increased for better selection)
+        const recommendations = scored.slice(0, 30).map((s, idx) => {
             const inf = s.influencer;
+            
+            // Calculate estimated price based on followers and engagement
+            let estimatedPrice = 200;
+            if (typeof inf.followersCount === 'number' && inf.followersCount > 0) {
+                // Base price: $1 per 1000 followers, adjusted by engagement
+                const basePrice = inf.followersCount / 1000;
+                const engagementMultiplier = typeof inf.engagement === 'number' && inf.engagement > 0
+                    ? 1 + (inf.engagement / 10) // Higher engagement = higher price
+                    : 1;
+                estimatedPrice = Math.max(50, Math.round(basePrice * engagementMultiplier));
+            }
+
+            // Determine brand alignment level
+            let brandAlignment = 'Good';
+            if (s.details.categoryScore >= 0.8) brandAlignment = 'Excellent';
+            else if (s.details.categoryScore >= 0.6) brandAlignment = 'Very Good';
+            else if (s.details.categoryScore >= 0.4) brandAlignment = 'Good';
+
+            // Calculate estimated ROI (higher engagement and match = better ROI)
+            const roiBase = 2.0;
+            const roiBoost = (s.details.categoryScore * 0.5) + (s.details.engagementScore * 0.3);
+            const estimatedROI = (roiBase + roiBoost).toFixed(1);
+
+            // Extract previous brand collaborations
+            const previousWork = [];
+            if (inf.campaigns && Array.isArray(inf.campaigns)) {
+                const uniqueBrands = new Set();
+                inf.campaigns.forEach(campaign => {
+                    if (campaign.brand && campaign.status === 'Completed') {
+                        uniqueBrands.add(campaign.brand);
+                    }
+                });
+                previousWork.push(...Array.from(uniqueBrands).slice(0, 5));
+            }
+
             return {
                 id: inf._id,
                 name: `${inf.firstName} ${inf.lastName}`,
                 handle: `@${inf.instagram}`,
                 avatar: null,
                 followers: inf.followersCount ? inf.followersCount.toLocaleString() : inf.followers,
-                engagement: (typeof inf.engagement === 'number') ? `${inf.engagement}%` : '—',
+                engagement: (typeof inf.engagement === 'number') ? `${inf.engagement.toFixed(1)}%` : '—',
                 niche: inf.category || 'General',
                 location: inf.location || 'Unknown',
-                rating: 4.5,
-                price: inf.followersCount ? `$${Math.max(50, Math.round(inf.followersCount / 10000))}` : '$200',
+                rating: 4.5 + (s.score / 200), // Dynamic rating based on score
+                price: `$${estimatedPrice}`,
                 platforms: ['instagram'],
                 matchScore: s.score,
-                audienceMatch: `${Math.min(100, Math.round(s.score * 0.9))}%`,
-                brandAlignment: s.details.categoryMatch ? 'Excellent' : 'Good',
-                previousWork: [],
-                avgViews: null,
+                audienceMatch: `${Math.min(100, Math.round(s.score * 0.95))}%`,
+                brandAlignment: brandAlignment,
+                previousWork: previousWork,
+                avgViews: inf.avgLikes ? inf.avgLikes.toLocaleString() : null,
                 demographics: {},
                 recentPosts: [],
-                tags: [],
+                tags: inf.category ? [inf.category] : [],
                 verified: false,
                 responseTime: '< 24 hours',
                 campaignFit: `Suitable for ${brand.industry} campaigns`,
-                estimatedROI: `${(2 + (s.score / 100)).toFixed(1)}x`
+                estimatedROI: `${estimatedROI}x`
             };
         });
 

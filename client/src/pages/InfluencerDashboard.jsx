@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { User, Heart, TrendingUp, DollarSign, MapPin, Tag, Instagram, LogOut } from 'lucide-react';
+import { User, Heart, TrendingUp, MapPin, Tag, Instagram, LogOut } from 'lucide-react';
 
 const InfluencerDashboard = ({ influencer: influencerProp, onLogout }) => {
   const [influencer, setInfluencer] = useState(influencerProp);
